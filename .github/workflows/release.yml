@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: '0.16.0'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y grub-pc-bin xorriso mtools
+
+      - name: Install Limine
+        run: |
+          curl -fLo /tmp/limine.tar.gz \
+            https://github.com/Limine-Bootloader/Limine/releases/download/v12.6.1/limine-binary.tar.gz
+          tar xf /tmp/limine.tar.gz -C /tmp
+          cd /tmp/limine-binary && make
+          sudo cp /tmp/limine-binary/limine /usr/local/bin/limine
+          sudo chmod +x /usr/local/bin/limine
+          sudo mkdir -p /usr/share/limine
+          sudo cp /tmp/limine-binary/limine-bios.sys \
+                  /tmp/limine-binary/limine-bios-cd.bin \
+                  /tmp/limine-binary/limine-uefi-cd.bin \
+                  /usr/share/limine/
+
+      - name: Build binaries and ISOs
+        run: |
+          zig build -Doptimize=ReleaseSmall
+          zig build iso-grub
+          zig build iso-limine
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            quiet-grub.iso
+            quiet-limine.iso
+            zig-out/bin/quiet.k
