@@ -46,6 +46,10 @@ pub fn build(b: *std.Build) void {
         },
     });
 
+    const build_options = b.addOptions();
+    build_options.addOption([]const u8, "version", @import("build.zig.zon").version);
+    kernel_module.addOptions("b_opt", build_options);
+
     // Kernel raw binary
     const kernel = b.addExecutable(.{
         .name = "quiet.k",
