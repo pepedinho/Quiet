@@ -17,9 +17,10 @@ pub export fn main(magic: u32, mb_info: *arch.mb2.BootInfo) void {
 
     drivers.serial.print("[STEP] Magic check done.\n", .{});
 
-    drivers.vga.init();
+    drivers.terminal.init();
+    drivers.terminal.print("bonjour\n", .{});
     drivers.serial.print("[STEP] Vga init done.\n", .{});
-    drivers.vga.print("Quiet v{s}\n", .{b_opt.version});
+    drivers.terminal.print("Quiet v{s}\n", .{b_opt.version});
 
     while (true) {}
 }
