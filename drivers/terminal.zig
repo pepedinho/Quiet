@@ -37,7 +37,6 @@ pub const TerminalState = enum {
 };
 
 pub const Terminal = struct {
-    state: TerminalState = .normal,
     buffer: [BUFFER_SIZE]vga.Cell,
 
     cursor_row: usize = SCROLLBACK,
@@ -123,16 +122,51 @@ pub const Terminal = struct {
     }
 };
 
-var terminal: Terminal = undefined;
+const MAX_TERMINAL: usize = 8;
+var terminals: [MAX_TERMINAL]Terminal = undefined;
+var active_idx: usize = 0;
+var g_state: TerminalState = .normal;
 
 /// Init VGA driver and [`Terminal`] structure.
 pub fn init() void {
     vga.init();
-    terminal = .{
+    terminals = [_]Terminal{.{
         .buffer = [_]vga.Cell{.{ .char = ' ', .attr = default_color }} ** BUFFER_SIZE,
         .cursor_col = 0,
         .top = TOTAL_ROWS - ROWS,
-    };
+    }} ** MAX_TERMINAL;
+}
+
+///Change active terminal to the provided idx.
+///if idx is out of bounds this function
+///applied a modulo on the provided value
+pub fn activate(idx: usize) void {
+    active_idx = idx % MAX_TERMINAL;
+    terminals[active_idx].flush();
+    switchState(.normal);
+}
+
+/// Change the state of terminal driver
+pub fn switchState(state: TerminalState) void {
+    g_state = state;
+}
+
+pub fn scrollUp() void {
+    terminals[active_idx].scrollUp();
+}
+
+pub fn scrollDown() void {
+    terminals[active_idx].scrollDown();
+}
+
+/// Return the idx of the current active terminal.
+pub fn activeTerminal() usize {
+    return active_idx;
+}
+
+/// Return the state of terminal driver.
+pub fn currentState() TerminalState {
+    return g_state;
 }
 
 fn drain(w: *std.Io.Writer, data: []const []const u8, splat: usize) std.Io.Writer.Error!usize {
@@ -171,9 +205,9 @@ pub fn writer(buffer: []u8) std.Io.Writer {
 
 pub fn printString(str: []const u8) void {
     for (str) |char| {
-        terminal.printChar(char);
+        terminals[active_idx].printChar(char);
     }
-    terminal.flush();
+    terminals[active_idx].flush();
 }
 
 pub fn print(comptime fmt: []const u8, args: anytype) void {
