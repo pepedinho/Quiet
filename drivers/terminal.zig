@@ -1,4 +1,14 @@
-//! Return true if top is at this max pos:
+//! Terminal driver: instance-based console with scrollback, viewport
+//! navigation and a status bar on the last screen row.
+//!
+//! # Layout
+//! Each [`Terminal`] owns a ring of `TOTAL_ROWS` rows made of `SCROLLBACK`
+//! history rows plus a window of `ROWS` visible rows. The visible window
+//! is picked with `top` in `0..SCROLLBACK`. Below it, the last physical
+//! row ([`STATUS_BAR_ROW`]) is reserved for the status bar and is never
+//! written by terminal content.
+//!
+//! Current Terminal implementation  representation
 //! example:
 //! window_height = 4
 //! total_row = 11
@@ -15,8 +25,15 @@
 //! visible window ─┤ | _ | _ | _ | _ | _ | _ | 9
 //!                 └─| _ | _ | _ | _ | _ | _ | 10 (max) (current row)
 //!
-//! in this case `atBottom` return true because
-//! top cannot be greater than 7 in with a window of 4 rows.
+//!
+//! # Color contract
+//! Backgrounds MUST be < 8 (bit 7 = 0) to avoid hardware blinking; the
+//! status bar uses `light_gray`. `flush` re-renders rows `0..ROWS-1`
+//! only — never the status bar row. Active tab highlight uses `fg`.
+//!
+//! # Public API
+//! terminal: init / activate / switchState / scrollUp / scrollDown /
+//! activeTerminal / currentState; Terminal: print / printString / flush.
 
 const std = @import("std");
 const vga = @import("vga.zig");
@@ -37,7 +54,6 @@ pub const TerminalState = enum {
 };
 
 pub const Terminal = struct {
-    state: TerminalState = .normal,
     buffer: [BUFFER_SIZE]vga.Cell,
 
     cursor_row: usize = SCROLLBACK,
@@ -123,16 +139,94 @@ pub const Terminal = struct {
     }
 };
 
-var terminal: Terminal = undefined;
+const MAX_TERMINAL: usize = 8;
+var terminals: [MAX_TERMINAL]Terminal = undefined;
+var active_idx: usize = 0;
+var g_state: TerminalState = .normal;
 
 /// Init VGA driver and [`Terminal`] structure.
 pub fn init() void {
     vga.init();
-    terminal = .{
+    terminals = [_]Terminal{.{
         .buffer = [_]vga.Cell{.{ .char = ' ', .attr = default_color }} ** BUFFER_SIZE,
         .cursor_col = 0,
         .top = TOTAL_ROWS - ROWS,
-    };
+    }} ** MAX_TERMINAL;
+
+    renderStatusBar();
+}
+
+///Change active terminal to the provided idx.
+///if idx is out of bounds this function
+///applied a modulo on the provided value
+pub fn activate(idx: usize) void {
+    active_idx = idx % MAX_TERMINAL;
+    terminals[active_idx].flush();
+    switchState(.normal);
+}
+
+/// Change the state of terminal driver
+pub fn switchState(state: TerminalState) void {
+    g_state = state;
+    renderStatusBar();
+}
+
+pub fn scrollUp() void {
+    terminals[active_idx].scrollUp();
+}
+
+pub fn scrollDown() void {
+    terminals[active_idx].scrollDown();
+}
+
+/// Return the idx of the current active terminal.
+pub fn activeTerminal() usize {
+    return active_idx;
+}
+
+/// Return the state of terminal driver.
+pub fn currentState() TerminalState {
+    return g_state;
+}
+
+pub const STATUS_BAR_ROW: usize = vga.VGA_HEIGHT - 1;
+const status_bar_color: vga.Color = .{ .fg = .black, .bg = .light_gray };
+
+fn renderStatusBar() void {
+    for (0..COLS) |i| {
+        vga.printCharAt(' ', status_bar_color, i, STATUS_BAR_ROW);
+    }
+
+    const tab_buffer_size: usize = (MAX_TERMINAL * 2) + 2;
+    var tabs = [_]u8{' '} ** tab_buffer_size;
+    var i: usize = 0;
+
+    for (0..MAX_TERMINAL) |tab| {
+        const written = if (tab == active_idx)
+            std.fmt.bufPrint(tabs[i .. i + 4], "[{d}] ", .{tab}) catch return
+        else
+            std.fmt.bufPrint(tabs[i .. i + 2], "{d} ", .{tab}) catch return;
+        i += written.len;
+    }
+
+    var color: vga.Color = status_bar_color;
+    for (tabs, 0..) |char, idx| {
+        if (char == '[') {
+            color.fg = .light_red;
+        }
+
+        vga.printCharAt(char, color, idx, STATUS_BAR_ROW);
+
+        if (char == ']') {
+            color.fg = .black;
+        }
+    }
+
+    const state = @tagName(g_state);
+    const start = vga.VGA_WIDTH - state.len;
+    for (state, 0..) |char, idx| {
+        vga.printCharAt(char, status_bar_color, start + idx, STATUS_BAR_ROW);
+    }
 }
 
 fn drain(w: *std.Io.Writer, data: []const []const u8, splat: usize) std.Io.Writer.Error!usize {
@@ -171,9 +265,9 @@ pub fn writer(buffer: []u8) std.Io.Writer {
 
 pub fn printString(str: []const u8) void {
     for (str) |char| {
-        terminal.printChar(char);
+        terminals[active_idx].printChar(char);
     }
-    terminal.flush();
+    terminals[active_idx].flush();
 }
 
 pub fn print(comptime fmt: []const u8, args: anytype) void {
