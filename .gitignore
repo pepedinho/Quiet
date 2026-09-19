@@ -3,3 +3,4 @@ zig-out/
 iso-grub/
 iso-limine/
 *.iso
+flake.lock

@@ -11,7 +11,7 @@ var term_col: usize = 0;
 var term_color = Color.init(.light_gray, .black);
 var term_buffer: [*]volatile Cell = VGA_BUFFER;
 
-const Color = packed struct(u8) {
+pub const Color = packed struct(u8) {
     fg: ColorType,
     bg: ColorType,
 
@@ -25,7 +25,7 @@ const Color = packed struct(u8) {
     }
 };
 
-const Cell = extern struct {
+pub const Cell = extern struct {
     char: u8,
     attr: Color,
 
@@ -75,6 +75,14 @@ pub fn enableCursor(start: u8, end: u8) void {
 pub fn disableCursor() void {
     pio.outb(0x3D4, 0x0A);
     pio.outb(0x3D5, 0x20);
+}
+
+pub fn placeCuror(row: usize, col: usize) void {
+    const pos = row * VGA_WIDTH + col;
+    pio.outb(0x3D4, 0x0F);
+    pio.outb(0x3D5, @as(u8, @intCast(pos & 0xFF)));
+    pio.outb(0x3D4, 0x0E);
+    pio.outb(0x3D5, @as(u8, @intCast((pos >> 8) & 0xFF)));
 }
 
 pub fn syncCursor() void {
