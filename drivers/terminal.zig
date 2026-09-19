@@ -1,4 +1,14 @@
-//! Return true if top is at this max pos:
+//! Terminal driver: instance-based console with scrollback, viewport
+//! navigation and a status bar on the last screen row.
+//!
+//! # Layout
+//! Each [`Terminal`] owns a ring of `TOTAL_ROWS` rows made of `SCROLLBACK`
+//! history rows plus a window of `ROWS` visible rows. The visible window
+//! is picked with `top` in `0..SCROLLBACK`. Below it, the last physical
+//! row ([`STATUS_BAR_ROW`]) is reserved for the status bar and is never
+//! written by terminal content.
+//!
+//! Current Terminal implementation  representation
 //! example:
 //! window_height = 4
 //! total_row = 11
@@ -15,8 +25,15 @@
 //! visible window ─┤ | _ | _ | _ | _ | _ | _ | 9
 //!                 └─| _ | _ | _ | _ | _ | _ | 10 (max) (current row)
 //!
-//! in this case `atBottom` return true because
-//! top cannot be greater than 7 in with a window of 4 rows.
+//!
+//! # Color contract
+//! Backgrounds MUST be < 8 (bit 7 = 0) to avoid hardware blinking; the
+//! status bar uses `light_gray`. `flush` re-renders rows `0..ROWS-1`
+//! only — never the status bar row. Active tab highlight uses `fg`.
+//!
+//! # Public API
+//! terminal: init / activate / switchState / scrollUp / scrollDown /
+//! activeTerminal / currentState; Terminal: print / printString / flush.
 
 const std = @import("std");
 const vga = @import("vga.zig");
@@ -172,7 +189,7 @@ pub fn currentState() TerminalState {
     return g_state;
 }
 
-const STATUS_BAR_ROW: usize = vga.VGA_HEIGHT - 1;
+pub const STATUS_BAR_ROW: usize = vga.VGA_HEIGHT - 1;
 const status_bar_color: vga.Color = .{ .fg = .black, .bg = .light_gray };
 
 fn renderStatusBar() void {
