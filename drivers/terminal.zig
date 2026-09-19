@@ -135,6 +135,8 @@ pub fn init() void {
         .cursor_col = 0,
         .top = TOTAL_ROWS - ROWS,
     }} ** MAX_TERMINAL;
+
+    renderStatusBar();
 }
 
 ///Change active terminal to the provided idx.
@@ -149,6 +151,7 @@ pub fn activate(idx: usize) void {
 /// Change the state of terminal driver
 pub fn switchState(state: TerminalState) void {
     g_state = state;
+    renderStatusBar();
 }
 
 pub fn scrollUp() void {
@@ -167,6 +170,46 @@ pub fn activeTerminal() usize {
 /// Return the state of terminal driver.
 pub fn currentState() TerminalState {
     return g_state;
+}
+
+const STATUS_BAR_ROW: usize = vga.VGA_HEIGHT - 1;
+const status_bar_color: vga.Color = .{ .fg = .black, .bg = .light_gray };
+
+fn renderStatusBar() void {
+    for (0..COLS) |i| {
+        vga.printCharAt(' ', status_bar_color, i, STATUS_BAR_ROW);
+    }
+
+    const tab_buffer_size: usize = (MAX_TERMINAL * 2) + 2;
+    var tabs = [_]u8{' '} ** tab_buffer_size;
+    var i: usize = 0;
+
+    for (0..MAX_TERMINAL) |tab| {
+        const written = if (tab == active_idx)
+            std.fmt.bufPrint(tabs[i .. i + 4], "[{d}] ", .{tab}) catch return
+        else
+            std.fmt.bufPrint(tabs[i .. i + 2], "{d} ", .{tab}) catch return;
+        i += written.len;
+    }
+
+    var color: vga.Color = status_bar_color;
+    for (tabs, 0..) |char, idx| {
+        if (char == '[') {
+            color.fg = .light_red;
+        }
+
+        vga.printCharAt(char, color, idx, STATUS_BAR_ROW);
+
+        if (char == ']') {
+            color.fg = .black;
+        }
+    }
+
+    const state = @tagName(g_state);
+    const start = vga.VGA_WIDTH - state.len;
+    for (state, 0..) |char, idx| {
+        vga.printCharAt(char, status_bar_color, start + idx, STATUS_BAR_ROW);
+    }
 }
 
 fn drain(w: *std.Io.Writer, data: []const []const u8, splat: usize) std.Io.Writer.Error!usize {
