@@ -80,9 +80,9 @@ pub fn disableCursor() void {
 pub fn placeCuror(row: usize, col: usize) void {
     const pos = row * VGA_WIDTH + col;
     pio.outb(0x3D4, 0x0F);
-    pio.outb(0x3D5, @as(u8, pos & 0xFF));
+    pio.outb(0x3D5, @as(u8, @intCast(pos & 0xFF)));
     pio.outb(0x3D4, 0x0E);
-    pio.outb(0x3D5, @as(u8, (pos >> 8) & 0xFF));
+    pio.outb(0x3D5, @as(u8, @intCast((pos >> 8) & 0xFF)));
 }
 
 pub fn syncCursor() void {
