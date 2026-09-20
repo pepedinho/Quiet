@@ -82,8 +82,7 @@ pub fn init() void {
     outb(PIC2_DATA, ICW4_8086);
     ioWait();
 
-    outb(PIC1_DATA, 0);
-    outb(PIC2_DATA, 0);
+    maskAll();
 }
 
 pub fn sendEoi(irq: Irq) void {
@@ -108,7 +107,17 @@ pub fn irqClearMask(irq: Irq) void {
         const value = inb(PIC1_DATA) & ~(@as(u8, 1) << @truncate(@intFromEnum(irq)));
         outb(PIC1_DATA, value);
     } else {
-        const value = inb(PIC2_DATA) & ~(@as(u8, 1) << @truncate(@intFromEnum(irq) - 9));
+        const value = inb(PIC2_DATA) & ~(@as(u8, 1) << @truncate(@intFromEnum(irq) - 8));
         outb(PIC2_DATA, value);
     }
+}
+
+pub fn maskAll() void {
+    outb(PIC1_DATA, 0xFF);
+    outb(PIC2_DATA, 0xFF);
+}
+
+pub fn unmaskAll() void {
+    outb(PIC1_DATA, 0);
+    outb(PIC2_DATA, 0);
 }

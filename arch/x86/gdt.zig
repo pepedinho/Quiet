@@ -4,7 +4,7 @@
 const std = @import("std");
 
 pub const KERNEL_CODE_SEGMENT: u16 = 0x08;
-pub const KERNEL_DATA_SEG: u16 = 0x10;
+pub const KERNEL_DATA_SEGMENT: u16 = 0x10;
 
 const GDT_ENTRIES = 7;
 
@@ -60,23 +60,23 @@ const gdt_entries = gdt_entries: {
     tbl[0] = .nil;
     // 0x08 ~ Kernel code (ring 0).
     tbl[1] = .make(0, 0xFFFFF, .{ .read_write = 1, .executable = 1, .privilege = 0 }, .{});
-    // 0x08 ~ Kernel data (ring 0).
+    // 0x10 ~ Kernel data (ring 0).
     tbl[2] = .make(0, 0xFFFFF, .{ .read_write = 1, .executable = 0, .privilege = 0 }, .{});
-    // 0x08 ~ Kernel stack (ring 0).
+    // 0x18 ~ Kernel stack (ring 0).
     tbl[3] = .make(0, 0xFFFFF, .{ .read_write = 1, .executable = 0, .privilege = 0, .dc = 1 }, .{});
 
     // 0x20 ~ User code (ring 3).
     tbl[4] = .make(0, 0xFFFFF, .{ .read_write = 1, .executable = 1, .privilege = 3 }, .{});
-    // 0x20 ~ User data (ring 3).
+    // 0x28 ~ User data (ring 3).
     tbl[5] = .make(0, 0xFFFFF, .{ .read_write = 1, .executable = 0, .privilege = 3 }, .{});
-    // 0x20 ~ User stack (ring 3).
+    // 0x30 ~ User stack (ring 3).
     tbl[6] = .make(0, 0xFFFFF, .{ .read_write = 1, .executable = 0, .privilege = 3, .dc = 1 }, .{});
     break :gdt_entries tbl;
 };
 
 pub fn init() void {
     const gdtr: GdtDescriptor = .{
-        .size = @sizeOf(@TypeOf(gdt_entries)),
+        .size = @sizeOf(@TypeOf(gdt_entries)) - 1,
         .offset = @intFromPtr(&gdt_entries),
     };
 
@@ -94,5 +94,3 @@ pub fn init() void {
         : [ptr] "r" (&gdtr),
         : .{ .ax = true });
 }
-
-
