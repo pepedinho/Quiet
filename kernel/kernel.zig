@@ -11,6 +11,11 @@ pub export fn main(magic: u32, mb_info: *arch.mb2.BootInfo) void {
     _ = mb_info;
     drivers.serial.init();
 
+    arch.pic.init();
+    drivers.serial.print("[STEP] PIC remapped.\n", .{});
+    arch.gdt.init();
+    drivers.serial.print("[STEP] GDT loaded.\n", .{});
+
     if (magic != arch.mb2.BOOTLOADER_MAGIC) {
         @panic("incorrect magic");
     }

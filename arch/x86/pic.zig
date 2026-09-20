@@ -95,20 +95,20 @@ pub fn sendEoi(irq: Irq) void {
 
 pub fn irqSetMask(irq: Irq) void {
     if (@intFromEnum(irq) < 8) {
-        const value = inb(PIC1_DATA) | @as(u8, 1) << @intCast(@intFromEnum(irq));
+        const value = inb(PIC1_DATA) | @as(u8, 1) << @truncate(@intFromEnum(irq));
         outb(PIC1_DATA, value);
     } else {
-        const value = inb(PIC2_DATA) | @as(u8, 1) << @intCast(@intFromEnum(irq) - 8);
+        const value = inb(PIC2_DATA) | @as(u8, 1) << @truncate(@intFromEnum(irq) - 8);
         outb(PIC2_DATA, value);
     }
 }
 
 pub fn irqClearMask(irq: Irq) void {
     if (@intFromEnum(irq) < 8) {
-        const value = inb(PIC1_DATA) & ~(@as(u8, 1) << @intCast(@intFromEnum(irq)));
+        const value = inb(PIC1_DATA) & ~(@as(u8, 1) << @truncate(@intFromEnum(irq)));
         outb(PIC1_DATA, value);
     } else {
-        const value = inb(PIC2_DATA) & ~(@as(u8, 1) << @intCast(@intFromEnum(irq) - 9));
+        const value = inb(PIC2_DATA) & ~(@as(u8, 1) << @truncate(@intFromEnum(irq) - 9));
         outb(PIC2_DATA, value);
     }
 }
