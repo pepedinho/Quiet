@@ -16,6 +16,7 @@
           pkgs.grub2
           pkgs.xorriso
           pkgs.mtools
+		  pkgs.gum
         ];
 
         shellHook = ''
