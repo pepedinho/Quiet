@@ -56,7 +56,7 @@ const ColorType = enum(u4) {
 
 pub fn init() void {
     clear();
-    enableCursor(14, 15);
+    enableCursor(0, 15);
     syncCursor();
 }
 
