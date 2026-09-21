@@ -37,6 +37,13 @@ pub export fn main(magic: u32, mb_info: *arch.mb2.BootInfo) void {
             switch (key) {
                 .char => |c| drivers.terminal.print("{c}", .{c}),
                 .func => |n| drivers.terminal.print("F{d}", .{n}),
+                .nav => |n| switch (n) {
+                    .up => drivers.serial.print("up arrow\n", .{}),
+                    .down => drivers.serial.print("down arrow\n", .{}),
+                    .left => drivers.serial.print("left arrow\n", .{}),
+                    .right => drivers.serial.print("right arrow\n", .{}),
+                    else => {},
+                },
             }
         }
         asm volatile ("hlt");

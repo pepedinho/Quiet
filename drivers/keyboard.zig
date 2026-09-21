@@ -6,11 +6,28 @@ const idt = arch.idt;
 
 const KBD_DATA: u16 = 0x60;
 
+const pairs = .{
+    .{ 0x02, '1', '!' },  .{ 0x03, '2', '@' }, .{ 0x04, '3', '#' },
+    .{ 0x05, '4', '$' },  .{ 0x06, '5', '%' }, .{ 0x07, '6', '^' },
+    .{ 0x08, '7', '&' },  .{ 0x09, '8', '*' }, .{ 0x0A, '9', '(' },
+    .{ 0x0B, '0', ')' },  .{ 0x0C, '-', '_' }, .{ 0x0D, '=', '+' },
+    .{ 0x1A, '[', '{' },  .{ 0x1B, ']', '}' }, .{ 0x27, ';', ':' },
+    .{ 0x28, '\'', '"' }, .{ 0x29, '`', '~' }, .{ 0x2B, '\\', '|' },
+    .{ 0x33, ',', '<' },  .{ 0x34, '.', '>' }, .{ 0x35, '/', '?' },
+};
+
 const rows = .{
     .{ .start = 0x10, .chars = "qwertyuiop" },
     .{ .start = 0x1E, .chars = "asdfghjkl" },
     .{ .start = 0x2C, .chars = "zxcvbnm" },
 };
+
+comptime {
+    for (pairs) |p| {
+        if (base_map[p[0]] != p[1]) @compileError("base_map[p[0]] != p[1]");
+        if (shift_map[p[0]] != p[2]) @compileError("base_map[p[0]] != p[2]");
+    }
+}
 
 const base_map: [0x80]u8 = blk: {
     var m: [0x80]u8 = [_]u8{0} ** 0x80;
@@ -19,6 +36,7 @@ const base_map: [0x80]u8 = blk: {
             m[row.start + i] = c;
         }
     }
+    for (pairs) |p| m[p[0]] = p[1];
     m[0x02 + 0] = '1';
     m[0x0E] = '\x08';
     m[0x1C] = '\n';
@@ -32,14 +50,27 @@ const shift_map: [0x80]u8 = blk: {
     for (&m) |*c| {
         if (std.ascii.isAlphabetic(c.*)) c.* = std.ascii.toUpper(c.*);
     }
-    m[0x02] = '!';
-    m[0x03] = '@';
+    for (pairs) |p| m[p[0]] = p[2];
     break :blk m;
+};
+
+const NavKey = enum {
+    up,
+    down,
+    left,
+    right,
+    home,
+    end,
+    page_up,
+    page_down,
+    insert,
+    delete,
 };
 
 pub const Key = union(enum) {
     char: u8,
     func: u8,
+    nav: NavKey,
 };
 
 ///FIFO
@@ -70,6 +101,7 @@ const RBuffer = struct {
 };
 
 var buffer: RBuffer = undefined;
+var ext = false;
 var shift: bool = false;
 var ctrl = false;
 var alt = false;
@@ -82,6 +114,37 @@ fn keyboardHandler(frame: *idt.InterruptFrame) void {
     const is_break = data & 0x80 != 0;
     const scancode = data & 0x7F;
 
+    if (data == 0xE0) {
+        ext = true;
+        pic.sendEoi(.keyboard);
+        return;
+    }
+
+    if (ext) {
+        ext = false;
+        if (is_break) {
+            pic.sendEoi(.keyboard);
+            return;
+        }
+
+        switch (scancode) {
+            0x48 => buffer.push(.{ .nav = .up }),
+            0x50 => buffer.push(.{ .nav = .down }),
+            0x4B => buffer.push(.{ .nav = .left }),
+            0x4D => buffer.push(.{ .nav = .right }),
+            0x47 => buffer.push(.{ .nav = .home }),
+            0x4F => buffer.push(.{ .nav = .end }),
+            0x49 => buffer.push(.{ .nav = .page_up }),
+            0x51 => buffer.push(.{ .nav = .page_down }),
+            0x52 => buffer.push(.{ .nav = .insert }),
+            0x53 => buffer.push(.{ .nav = .delete }),
+            else => {},
+        }
+
+        pic.sendEoi(.keyboard);
+        return;
+    }
+
     switch (scancode) {
         0x2A, 0x36 => shift = !is_break,
         0x1D => ctrl = !is_break,
@@ -92,6 +155,10 @@ fn keyboardHandler(frame: *idt.InterruptFrame) void {
         0x1C => if (!is_break) buffer.push(.{ .char = '\n' }),
         0x0F => if (!is_break) buffer.push(.{ .char = '\t' }),
         0x39 => if (!is_break) buffer.push(.{ .char = ' ' }),
+
+        0x3B...0x44 => if (!is_break) buffer.push(.{ .func = @as(u8, scancode - 0x3B + 1) }),
+        0x57 => if (!is_break) buffer.push(.{ .func = 11 }),
+        0x58 => if (!is_break) buffer.push(.{ .func = 12 }),
 
         else => if (!is_break) {
             var ch = base_map[scancode];
