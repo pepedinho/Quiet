@@ -20,7 +20,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y grub-pc-bin xorriso mtools
+          sudo apt-get install -y qemu-system-x86 grub-pc-bin xorriso mtools
 
       - name: Install Limine
         run: |
@@ -41,6 +41,9 @@ jobs:
           zig build -Doptimize=ReleaseSmall
           zig build iso-grub
           zig build iso-limine
+
+      - name: Smoke test released artifact
+        run: ./scripts/smoke.sh ReleaseSmall
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
