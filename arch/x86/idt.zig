@@ -68,7 +68,7 @@ const GateDescriptor = packed struct(u64) {
     }
 };
 
-const InterruptFrame = packed struct {
+pub const InterruptFrame = packed struct {
     edi: u32,
     esi: u32,
     ebp: u32,

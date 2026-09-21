@@ -25,10 +25,20 @@ pub export fn main(magic: u32, mb_info: *arch.mb2.BootInfo) void {
 
     drivers.serial.print("[STEP] Magic check done.\n", .{});
 
+    drivers.keyboard.init();
+    drivers.serial.print("[STEP] keyboard init.\n", .{});
     drivers.terminal.init();
     drivers.terminal.print("bonjour\n", .{});
     drivers.serial.print("[STEP] Vga init done.\n", .{});
     drivers.terminal.print("Quiet v{s}\n", .{b_opt.version});
 
-    asm volatile ("hlt");
+    while (true) {
+        while (drivers.keyboard.readKey()) |key| {
+            switch (key) {
+                .char => |c| drivers.terminal.print("{c}", .{c}),
+                .func => |n| drivers.terminal.print("F{d}", .{n}),
+            }
+        }
+        asm volatile ("hlt");
+    }
 }
