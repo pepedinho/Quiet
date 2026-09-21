@@ -77,6 +77,16 @@ pub const Terminal = struct {
         }
     }
 
+    pub fn backspace(self: *Self) void {
+        if (self.cursor_col > 0) {
+            self.cursor_col -= 1;
+        } else if (self.cursor_row > 0) {
+            self.cursor_row -= 1;
+            self.cursor_col = COLS - 1;
+        }
+        self.buffer[self.cursor_row * COLS + self.cursor_col] = .{ .char = ' ', .attr = self.color };
+    }
+
     /// Shifted by one all internal buffer line
     /// if the buffer is full first line will be deleted to
     /// make room for the new one.
@@ -104,6 +114,7 @@ pub const Terminal = struct {
                 const next_tab = (self.cursor_col + 8) & ~@as(usize, 7);
                 self.cursor_col = if (next_tab < COLS) next_tab else COLS - 1;
             },
+            '\x08' => self.backspace(),
             else => {
                 const flatten_pos = self.cursor_row * COLS + self.cursor_col;
                 self.buffer[flatten_pos] = .{ .char = char, .attr = self.color };
