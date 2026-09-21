@@ -22,3 +22,4 @@ pub const mb2 = mod.mb2;
 pub const pio = mod.pio;
 pub const pic = mod.pic;
 pub const gdt = mod.gdt;
+pub const idt = mod.idt;
