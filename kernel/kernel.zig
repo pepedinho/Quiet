@@ -28,7 +28,7 @@ pub export fn main(magic: u32, mb_info: *arch.mb2.BootInfo) void {
     drivers.keyboard.init();
     drivers.serial.print("[STEP] keyboard init.\n", .{});
     drivers.terminal.init();
-    drivers.terminal.print("bonjour\n", .{});
+    drivers.terminal.print("\x1b[31m42\x1b[m\n", .{});
     drivers.serial.print("[STEP] Vga init done.\n", .{});
     drivers.terminal.print("Quiet v{s}\n", .{b_opt.version});
 

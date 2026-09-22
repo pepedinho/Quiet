@@ -37,6 +37,7 @@
 
 const std = @import("std");
 const vga = @import("vga.zig");
+const ansi = @import("ansi.zig");
 
 pub const COLS: usize = vga.VGA_WIDTH;
 /// Visible rows on the screen.
@@ -62,6 +63,7 @@ pub const Terminal = struct {
     top: usize,
 
     color: vga.Color = default_color,
+    parser: ansi.Parser = .{},
 
     const Self = @This();
 
@@ -101,6 +103,80 @@ pub const Terminal = struct {
         @memset(last, .{ .char = ' ', .attr = self.color });
     }
 
+    /// Terminal translate ansi event in screen action.
+    fn handleAnsi(self: *Self, event: ansi.Event) void {
+        switch (event) {
+            .char => |c| {
+                if (c < 0x20) return;
+                const flatten_pos = self.cursor_row * COLS + self.cursor_col;
+                self.buffer[flatten_pos] = .{ .char = c, .attr = self.color };
+                self.cursor_col += 1;
+                if (self.cursor_col == COLS) self.nl();
+            },
+            .sgr => |sgr| self.applySgr(sgr),
+            .cursor_home => {
+                self.cursor_row = self.top;
+                self.cursor_col = 0;
+            },
+            .cursor_position => |pos| self.setCursorPos(pos.row, pos.col),
+            .cursor_up => |n| self.moveCursor(-@as(isize, n), 0),
+            .cursor_down => |n| self.moveCursor(@as(isize, n), 0),
+            .cursor_left => |n| self.moveCursor(0, -@as(isize, n)),
+            .cursor_right => |n| self.moveCursor(0, @as(isize, n)),
+            .clear_after_cursor => self.eraseFromCursor(),
+            .clear_until_cursor => self.eraseToCursor(),
+            .clear => self.eraseDisplay(),
+        }
+    }
+
+    fn applySgr(self: *Self, sgr: ansi.Sgr) void {
+        if (sgr.reset) self.color = default_color;
+        if (sgr.fg) |i| {
+            const idx: u8 = if (sgr.bold and i < 8) i + 8 else i;
+            self.color.fg = @enumFromInt(@as(u4, @intCast(idx)));
+        }
+        if (sgr.bg) |i| {
+            self.color.bg = @enumFromInt(@as(u4, @intCast(@min(i, 7))));
+        }
+    }
+
+    fn moveCursor(self: *Self, rows: isize, cols: isize) void {
+        const nr = @as(isize, @intCast(self.cursor_row)) + rows;
+        self.cursor_row = @intCast(std.math.clamp(
+            nr,
+            @as(isize, @intCast(self.top)),
+            @as(isize, @intCast(self.top + ROWS - 1)),
+        ));
+        const nc = @as(isize, @intCast(self.cursor_col)) + cols;
+        self.cursor_col = @intCast(std.math.clamp(nc, @as(isize, 0), @as(isize, @intCast(COLS - 1))));
+    }
+
+    fn setCursorPos(self: *Self, row: u8, col: u8) void {
+        self.cursor_row = @min(self.top + @as(usize, row) - 1, self.top + ROWS - 1);
+        self.cursor_col = @min(@as(usize, col) - 1, COLS - 1);
+    }
+
+    fn clearRowFrom(self: *Self, row: usize, col: usize) void {
+        const line = self.buffer[row * COLS .. (row + 1) * COLS];
+        @memset(line[col..], .{ .char = ' ', .attr = self.color });
+    }
+
+    fn eraseDisplay(self: *Self) void {
+        for (self.top..self.top + ROWS) |r| self.clearRowFrom(r, 0);
+    }
+
+    fn eraseFromCursor(self: *Self) void {
+        self.clearRowFrom(self.cursor_row, self.cursor_col);
+        for (self.cursor_row + 1..self.top + ROWS) |r| self.clearRowFrom(r, 0);
+    }
+
+    fn eraseToCursor(self: *Self) void {
+        for (self.top..self.cursor_row) |r| self.clearRowFrom(r, 0);
+
+        const line = self.buffer[self.cursor_row * COLS .. (self.cursor_row + 1) * COLS];
+        @memset(line[0..self.cursor_col], .{ .char = ' ', .attr = self.color });
+    }
+
     /// Return true if top is at it max pos
     pub fn atBottom(self: *Self) bool {
         return self.top == TOTAL_ROWS - ROWS;
@@ -115,13 +191,8 @@ pub const Terminal = struct {
                 self.cursor_col = if (next_tab < COLS) next_tab else COLS - 1;
             },
             '\x08' => self.backspace(),
-            else => {
-                const flatten_pos = self.cursor_row * COLS + self.cursor_col;
-                self.buffer[flatten_pos] = .{ .char = char, .attr = self.color };
-                self.cursor_col += 1;
-                if (self.cursor_col == COLS) {
-                    self.nl();
-                }
+            else => if (self.parser.feed(char)) |event| {
+                self.handleAnsi(event);
             },
         }
     }
