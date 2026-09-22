@@ -49,6 +49,25 @@ pub const BUFFER_SIZE = COLS * TOTAL_ROWS;
 
 pub const default_color: vga.Color = .{ .fg = .light_gray, .bg = .black };
 
+const ansi_to_vga = [_]u4{
+    0, //  0 black        -> black
+    4, //  1 red          -> red
+    2, //  2 green        -> green
+    6, //  3 yellow       -> brown
+    1, //  4 blue         -> blue
+    5, //  5 magenta      -> magenta
+    3, //  6 cyan         -> cyan
+    7, //  7 white        -> light_gray
+    8, //  8 bright black -> dark_gray
+    12, //  9 bright red   -> light_red
+    10, // 10 bright green -> light_green
+    14, // 11 bright yellow-> light_brown
+    9, // 12 bright blue  -> light_blue
+    13, // 13 bright magenta-> light_magenta
+    11, // 14 bright cyan  -> light_cyan
+    15, // 15 bright white -> white
+};
+
 pub const TerminalState = enum {
     normal,
     navigation,
@@ -133,10 +152,10 @@ pub const Terminal = struct {
         if (sgr.reset) self.color = default_color;
         if (sgr.fg) |i| {
             const idx: u8 = if (sgr.bold and i < 8) i + 8 else i;
-            self.color.fg = @enumFromInt(@as(u4, @intCast(idx)));
+            self.color.fg = @enumFromInt(ansi_to_vga[idx]);
         }
         if (sgr.bg) |i| {
-            self.color.bg = @enumFromInt(@as(u4, @intCast(@min(i, 7))));
+            self.color.bg = @enumFromInt(ansi_to_vga[i & 0x07]);
         }
     }
 
