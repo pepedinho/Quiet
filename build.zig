@@ -67,6 +67,19 @@ pub fn build(b: *std.Build) void {
 
     b.installArtifact(kernel);
 
+    const test_module = b.createModule(.{
+        .root_source_file = b.path("drivers/ansi.zig"),
+        .target = b.graph.host,
+        .optimize = optimize,
+    });
+
+    const ansi_tests = b.addTest(.{ .root_module = test_module });
+    const run_tests = b.addRunArtifact(ansi_tests);
+    run_tests.has_side_effects = true;
+
+    const test_step = b.step("test", "Run ANSI parser unit tests");
+    test_step.dependOn(&run_tests.step);
+
     const iso_step = b.step("iso-grub", "Build bootable GRUB IMAGE");
 
     const mkdir_cmd = b.addSystemCommand(&.{ "mkdir", "-p", "iso-grub/boot/grub" });

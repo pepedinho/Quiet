@@ -19,6 +19,16 @@ jobs:
       - run: zig build
 
       - run: zig build -Doptimize=ReleaseSafe
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: '0.16.0'
+
+      - name: Run unit tests
+        run: zig build test --summary all
   smoke:
     runs-on: ubuntu-latest
     needs: build
