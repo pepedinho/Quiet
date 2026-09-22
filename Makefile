@@ -35,5 +35,8 @@ run-limine: build
 run-grub: build
 	$(ZIG) build run-grub
 
+test:
+	$(ZIG) build test
+
 .PHONY: build run clean clean-iso run-limine run-grub
 
