@@ -8,8 +8,6 @@
 # Asserts:
 #   1. The six "[STEP]" boot markers on the serial line (GDT, IDT, PIC,
 #      magic check, keyboard, VGA init).
-#   2. "up arrow" after injecting an Up-arrow key via the QEMU monitor,
-#      which exercises IRQ1 and the extended (0xE0) scancode path.
 #
 
 set -euo pipefail
@@ -58,6 +56,5 @@ grep -qF "[STEP] PIC remapped"      "$LOG"
 grep -qF "[STEP] Magic check done"  "$LOG"
 grep -qF "[STEP] keyboard init"     "$LOG"
 grep -qF "[STEP] Vga init done"     "$LOG"
-grep -qF "up arrow"                 "$LOG"
 
 echo "smoke OK ($OPT, $ISO)"

@@ -263,7 +263,7 @@ pub fn init() void {
 pub fn activate(idx: usize) void {
     active_idx = idx % MAX_TERMINAL;
     terminals[active_idx].flush();
-    switchState(.normal);
+    renderStatusBar();
 }
 
 /// Change the state of terminal driver
@@ -374,4 +374,12 @@ pub fn printString(str: []const u8) void {
 pub fn print(comptime fmt: []const u8, args: anytype) void {
     var w = writer(&.{});
     w.print(fmt, args) catch return;
+}
+
+pub fn putChar(char: u8) void {
+    terminals[active_idx].printChar(char);
+}
+
+pub fn flush() void {
+    terminals[active_idx].flush();
 }

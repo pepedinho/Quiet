@@ -151,6 +151,7 @@ fn keyboardHandler(frame: *idt.InterruptFrame) void {
         0x38 => alt = !is_break,
         0x3A => caps_lock = if (!is_break) !caps_lock else caps_lock,
 
+        0x01 => if (!is_break) buffer.push(.{ .char = '\x1b' }),
         0x0E => if (!is_break) buffer.push(.{ .char = '\x08' }),
         0x1C => if (!is_break) buffer.push(.{ .char = '\n' }),
         0x0F => if (!is_break) buffer.push(.{ .char = '\t' }),
