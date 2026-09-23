@@ -2,6 +2,7 @@ const std = @import("std");
 const arch = @import("arch");
 const drivers = @import("drivers");
 const b_opt = @import("b_opt");
+const shell = @import("shell.zig");
 
 comptime {
     _ = arch.boot;
@@ -32,20 +33,21 @@ pub export fn main(magic: u32, mb_info: *arch.mb2.BootInfo) void {
     drivers.serial.print("[STEP] Vga init done.\n", .{});
     drivers.terminal.print("Quiet v{s}\n", .{b_opt.version});
 
-    while (true) {
-        while (drivers.keyboard.readKey()) |key| {
-            switch (key) {
-                .char => |c| drivers.terminal.print("{c}", .{c}),
-                .func => |n| drivers.terminal.print("F{d}", .{n}),
-                .nav => |n| switch (n) {
-                    .up => drivers.serial.print("up arrow\n", .{}),
-                    .down => drivers.serial.print("down arrow\n", .{}),
-                    .left => drivers.serial.print("left arrow\n", .{}),
-                    .right => drivers.serial.print("right arrow\n", .{}),
-                    else => {},
-                },
-            }
-        }
-        asm volatile ("hlt");
-    }
+    shell.run();
+    // while (true) {
+    //     while (drivers.keyboard.readKey()) |key| {
+    //         switch (key) {
+    //             .char => |c| drivers.terminal.print("{c}", .{c}),
+    //             .func => |n| drivers.terminal.print("F{d}", .{n}),
+    //             .nav => |n| switch (n) {
+    //                 .up => drivers.serial.print("up arrow\n", .{}),
+    //                 .down => drivers.serial.print("down arrow\n", .{}),
+    //                 .left => drivers.serial.print("left arrow\n", .{}),
+    //                 .right => drivers.serial.print("right arrow\n", .{}),
+    //                 else => {},
+    //             },
+    //         }
+    //     }
+    //     asm volatile ("hlt");
+    // }
 }
