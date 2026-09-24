@@ -298,15 +298,15 @@ fn renderStatusBar() void {
         vga.printCharAt(' ', status_bar_color, i, STATUS_BAR_ROW);
     }
 
-    const tab_buffer_size: usize = (MAX_TERMINAL * 2) + 2;
+    const tab_buffer_size: usize = (MAX_TERMINAL * 3);
     var tabs = [_]u8{' '} ** tab_buffer_size;
     var i: usize = 0;
 
     for (0..MAX_TERMINAL) |tab| {
         const written = if (tab == active_idx)
-            std.fmt.bufPrint(tabs[i .. i + 4], "[{d}] ", .{tab}) catch return
+            std.fmt.bufPrint(tabs[i .. i + 3], "[{d}]", .{tab}) catch return
         else
-            std.fmt.bufPrint(tabs[i .. i + 2], "{d} ", .{tab}) catch return;
+            std.fmt.bufPrint(tabs[i .. i + 3], " {d} ", .{tab}) catch return;
         i += written.len;
     }
 
@@ -382,4 +382,14 @@ pub fn putChar(char: u8) void {
 
 pub fn flush() void {
     terminals[active_idx].flush();
+}
+
+pub fn nextTab() void {
+    const target = active_idx + 1 % MAX_TERMINAL;
+    activate(target);
+}
+
+pub fn previousTab() void {
+    const target = if (active_idx == 0) MAX_TERMINAL - 1 else active_idx - 1;
+    activate(target);
 }

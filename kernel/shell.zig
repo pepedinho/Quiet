@@ -11,6 +11,7 @@ const Command = struct {
 
 const commands = [_]Command{
     .{ .name = "help", .desc = "Display all available commande for Quiet", .handler = cHelp },
+    .{ .name = "crash", .desc = "Crash manualy for debug pupose", .handler = cCrash },
 };
 
 pub fn run() void {
@@ -48,8 +49,10 @@ pub fn run() void {
                 },
                 .navigation => switch (key) {
                     .nav => |n| switch (n) {
-                        .left => terminal.activate(terminal.activeTerminal() - 1),
-                        .right => terminal.activate(terminal.activeTerminal() + 1),
+                        .left => terminal.previousTab(),
+                        .right => terminal.nextTab(),
+                        .up => terminal.scrollUp(),
+                        .down => terminal.scrollDown(),
                         else => {},
                     },
                     .char => |c| switch (c) {
@@ -80,7 +83,12 @@ fn cHelp(args: []const u8) void {
     _ = args;
     terminal.print("Help:\n", .{});
     for (commands) |cmd| {
-        terminal.print("{s:<8}{s}", .{ cmd.name, cmd.desc });
+        terminal.print("{s:<8}{s}\n", .{ cmd.name, cmd.desc });
     }
     terminal.putChar('\n');
+}
+
+fn cCrash(args: []const u8) void {
+    _ = args;
+    @panic("asked crash");
 }
