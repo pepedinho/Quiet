@@ -6,6 +6,7 @@
 //!     then call main(magic, info) as multiboot required it.
 //!     - [`mb2`] : read the boot information delivered by the bootloader (tags, mmap, cmdline).
 //!     - [`pio`] : port io interface provide inb/outb.
+//!     - [`cpu`] : common cpu intstruction, (hlt, sti, cli, ...).
 //!
 //! Only x86 implementation exists for now.
 //! To add an arch: add `arch/<cpu>` and wire up the re-exports.
@@ -23,3 +24,4 @@ pub const pio = mod.pio;
 pub const pic = mod.pic;
 pub const gdt = mod.gdt;
 pub const idt = mod.idt;
+pub const cpu = mod.cpu;

@@ -11,7 +11,7 @@ const GateType = enum(u4) {
 };
 
 // see: https://wiki.osdev.org/Interrupt_Descriptor_Table#IDT_items
-const Interrupt = enum(u8) {
+pub const Interrupt = enum(u8) {
     divide_error = 0,
     debug = 1,
     nmi = 2,

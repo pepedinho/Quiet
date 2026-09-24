@@ -4,3 +4,4 @@ pub const pio = @import("pio.zig");
 pub const pic = @import("pic.zig");
 pub const gdt = @import("gdt.zig");
 pub const idt = @import("idt.zig");
+pub const cpu = @import("cpu.zig");
