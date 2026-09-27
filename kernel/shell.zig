@@ -15,6 +15,7 @@ const commands = [_]Command{
     .{ .name = "crash", .desc = "Crash manualy for debug pupose", .handler = cCrash },
     .{ .name = "clear", .desc = "Clear the terminal screen", .handler = cClear },
     .{ .name = "reboot", .desc = "Reboot the system", .handler = cReboot },
+    .{ .name = "dump-stack", .desc = "Dump kernel stack", .handler = cDumpStack },
 };
 
 pub fn run() void {
@@ -102,4 +103,8 @@ fn cClear(_: []const u8) void {
 
 fn cReboot(_: []const u8) void {
     arch.cpu.reboot();
+}
+
+fn cDumpStack(_: []const u8) void {
+    @import("debug.zig").dumpStack();
 }
