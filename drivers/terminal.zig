@@ -133,10 +133,7 @@ pub const Terminal = struct {
                 if (self.cursor_col == COLS) self.nl();
             },
             .sgr => |sgr| self.applySgr(sgr),
-            .cursor_home => {
-                self.cursor_row = self.top;
-                self.cursor_col = 0;
-            },
+            .cursor_home => self.cursorHome(),
             .cursor_position => |pos| self.setCursorPos(pos.row, pos.col),
             .cursor_up => |n| self.moveCursor(-@as(isize, n), 0),
             .cursor_down => |n| self.moveCursor(@as(isize, n), 0),
@@ -157,6 +154,11 @@ pub const Terminal = struct {
         if (sgr.bg) |i| {
             self.color.bg = @enumFromInt(ansi_to_vga[i & 0x07]);
         }
+    }
+
+    fn cursorHome(self: *Self) void {
+        self.cursor_row = self.top;
+        self.cursor_col = 0;
     }
 
     fn moveCursor(self: *Self, rows: isize, cols: isize) void {
@@ -228,6 +230,11 @@ pub const Terminal = struct {
         if (self.atBottom()) {
             vga.placeCuror(self.cursor_row - self.top, self.cursor_col);
         }
+    }
+
+    pub fn clear(self: *Self) void {
+        @memset(&self.buffer, .{ .char = ' ', .attr = self.color });
+        self.cursorHome();
     }
 
     pub fn scrollDown(self: *Self) void {
@@ -368,12 +375,14 @@ pub fn printString(str: []const u8) void {
     for (str) |char| {
         terminals[active_idx].printChar(char);
     }
-    terminals[active_idx].flush();
 }
 
 pub fn print(comptime fmt: []const u8, args: anytype) void {
-    var w = writer(&.{});
+    var buf: [256]u8 = undefined;
+    var w = writer(&buf);
     w.print(fmt, args) catch return;
+    w.flush() catch return;
+    terminals[active_idx].flush();
 }
 
 pub fn putChar(char: u8) void {
@@ -392,4 +401,8 @@ pub fn nextTab() void {
 pub fn previousTab() void {
     const target = if (active_idx == 0) MAX_TERMINAL - 1 else active_idx - 1;
     activate(target);
+}
+
+pub fn clear() void {
+    terminals[active_idx].clear();
 }
