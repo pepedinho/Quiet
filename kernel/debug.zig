@@ -63,10 +63,21 @@ const arch = @import("arch");
 
 var panicked = false;
 
+/// Output destination for trace dumps: COM1 for crash path (boot/CI
+/// oriented), the active terminal for interactive `stack` command.
+pub const Sink = enum { serial, terminal };
+
+fn out(sink: Sink, comptime fmt: []const u8, args: anytype) void {
+    switch (sink) {
+        .serial => drivers.serial.print(fmt, args),
+        .terminal => drivers.terminal.print(fmt, args),
+    }
+}
+
 /// Walk the EBP chain from `start` and print one `#d 0x…` line per frame
 /// on COM1. If `skip_until` is set, ignore frames until their return
 /// address matches, then print from there (see module doc "Skip-until").
-fn printStack(start: usize, skip_until: ?usize) void {
+fn printStack(sink: Sink, start: usize, skip_until: ?usize) void {
     var ebp: usize = start;
 
     if (skip_until) |addr| {
@@ -80,11 +91,11 @@ fn printStack(start: usize, skip_until: ?usize) void {
         if (load(ebp + 4) != addr) return;
     }
 
-    drivers.serial.print("stack trace:\n", .{});
+    out(sink, "stack trace:\n", .{});
     var frame: usize = 0;
     while (ebp != 0 and frame < 32) : (frame += 1) {
         const ra = load(ebp + 4);
-        drivers.serial.print("#{d} 0x{x}\n", .{ frame, ra });
+        out(sink, "#{d} 0x{x}\n", .{ frame, ra });
         const next = load(ebp);
         if (next <= ebp) break;
         ebp = next;
@@ -103,12 +114,8 @@ pub fn panicHandler(msg: []const u8, ret_addr: ?usize) noreturn {
     if (panicked) arch.cpu.hlt();
     panicked = true;
     drivers.serial.print("KERNEL PANIC: {s}\n", .{msg});
-    printCleanStack(ret_addr);
+    printStack(.serial, @frameAddress(), ret_addr);
     arch.cpu.hlt();
-}
-
-fn printCleanStack(ret_addr: ?usize) void {
-    printStack(@frameAddress(), ret_addr);
 }
 
 /// CPU exception handler (registered for DE/UD/DF/GP/PF/AC).
@@ -120,20 +127,26 @@ pub fn exceptionHandler(frame: *arch.idt.InterruptFrame) void {
     panicked = true;
     const int_name = @tagName(@as(arch.idt.Interrupt, @enumFromInt(frame.int_no)));
     drivers.serial.print("EXCEPTION: {s} err=0x{x} eip=0x{x} cs={x} eflags={x}\n", .{ int_name, frame.err, frame.eip, frame.cs, frame.eflags });
-    traceFromEbp(frame.ebp, frame.eip);
+    traceFromEbp(.serial, frame.ebp, frame.eip);
     arch.cpu.hlt();
+}
+
+/// interactive stack trace on the terminal. Walks the EBP chain from the
+/// caller's frame (command handler) up  to `_start` (ebp == 0)
+pub fn dumpStack() void {
+    printStack(.terminal, @frameAddress(), null);
 }
 
 /// Trace for exception: `eip` as frame #0 (faulting instruction), then the
 /// caller chain from the interrupted context's saved EBP.
-fn traceFromEbp(ebp: usize, eip: usize) void {
-    drivers.serial.print("stack trace:\n", .{});
-    drivers.serial.print("#0 0x{x}\n", .{eip});
+fn traceFromEbp(sink: Sink, ebp: usize, eip: usize) void {
+    out(sink, "stack trace:\n", .{});
+    out(sink, "#0 0x{x}\n", .{eip});
     var cur: usize = ebp;
     var frame: usize = 1;
     while (cur != 0 and frame < 32) : (frame += 1) {
         const ra = load(cur + 4);
-        drivers.serial.print("#{d} 0x{x}\n", .{ frame, ra });
+        out(sink, "#{d} 0x{x}\n", .{ frame, ra });
         const next = load(cur);
         if (next <= cur) break;
         cur = next;
