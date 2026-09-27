@@ -2,6 +2,7 @@ const std = @import("std");
 const drivers = @import("drivers");
 const terminal = drivers.terminal;
 const keyboard = drivers.keyboard;
+const arch = @import("arch");
 
 const Command = struct {
     name: []const u8,
@@ -12,6 +13,8 @@ const Command = struct {
 const commands = [_]Command{
     .{ .name = "help", .desc = "Display all available commande for Quiet", .handler = cHelp },
     .{ .name = "crash", .desc = "Crash manualy for debug pupose", .handler = cCrash },
+    .{ .name = "clear", .desc = "Clear the terminal screen", .handler = cClear },
+    .{ .name = "reboot", .desc = "Reboot the system", .handler = cReboot },
 };
 
 pub fn run() void {
@@ -91,4 +94,12 @@ fn cHelp(args: []const u8) void {
 fn cCrash(args: []const u8) void {
     _ = args;
     @panic("asked crash");
+}
+
+fn cClear(_: []const u8) void {
+    terminal.clear();
+}
+
+fn cReboot(_: []const u8) void {
+    arch.cpu.reboot();
 }
