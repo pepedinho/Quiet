@@ -4,6 +4,7 @@ const drivers = @import("drivers");
 const b_opt = @import("b_opt");
 const shell = @import("shell.zig");
 const debug = @import("debug.zig");
+const bench = @import("bench.zig");
 
 comptime {
     _ = arch.boot;
@@ -40,6 +41,7 @@ pub export fn main(magic: u32, mb_info: *arch.mb2.BootInfo) void {
     drivers.serial.print("[STEP] Vga init done.\n", .{});
     drivers.terminal.print("Quiet v{s}\n", .{b_opt.version});
 
+    if (comptime b_opt.perf) bench.runAll();
     shell.run();
 }
 
