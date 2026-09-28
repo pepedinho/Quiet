@@ -83,13 +83,16 @@ fn exec(line: []const u8) void {
     terminal.print("No commands named '{s}'\n> ", .{line});
 }
 
-fn cHelp(args: []const u8) void {
-    _ = args;
+pub fn runHelp() void {
     terminal.print("Help:\n", .{});
     for (commands) |cmd| {
         terminal.print("{s:<8}{s}\n", .{ cmd.name, cmd.desc });
     }
     terminal.putChar('\n');
+}
+
+fn cHelp(_: []const u8) void {
+    runHelp();
 }
 
 fn cCrash(args: []const u8) void {

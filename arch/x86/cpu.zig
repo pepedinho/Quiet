@@ -17,3 +17,16 @@ pub fn reboot() noreturn {
     pio.outb(0x64, 0xFE);
     hlt();
 }
+
+/// Cycle counter. Wrap the read in disable/enable IRQ at the call site
+/// and take the min over reps: TSC is invariant on KVM/real CPUs.
+pub fn rdtsc() u64 {
+    var lo: u32 = undefined;
+    var hi: u32 = undefined;
+
+    asm volatile ("rdtsc"
+        : [lo] "={eax}" (lo),
+          [hi] "={edx}" (hi),
+    );
+    return (@as(u64, hi) << 32) | @as(u64, lo);
+}
