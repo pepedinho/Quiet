@@ -48,3 +48,52 @@ jobs:
 
       - name: Smoke test (ReleaseSafe)
         run: ./scripts/smoke.sh ReleaseSafe
+  perf:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: head }
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+      - uses: mlugg/setup-zig@v2
+        with: { version: '0.16.0' }
+      - run: sudo apt-get update && sudo apt-get install -y qemu-system-x86 grub-pc-bin xorriso mtools
+
+      - name: Save PR number
+        run: echo "${{ github.event.pull_request.number }}" > pr-number.txt
+
+      - name: Bench base (main)
+        working-directory: base
+        run: |
+          if [ -f scripts/perf.py ]; then
+            python3 scripts/perf.py bench --log base.log --out base.json
+          else
+            echo "no bench harness on base yet (first PR) — nothing to compare"
+            : > base.log
+          fi
+
+      - name: Bench head (PR)
+        working-directory: head
+        run: python3 scripts/perf.py bench --log head.log --out head.json
+
+      - name: Compare (gate)
+        run: |
+          python3 head/scripts/perf.py compare \
+            base/base.log head/head.log \
+            --base-label main --head-label "PR #${{ github.event.pull_request.number }}" \
+            --out perf-table.md
+
+      - name: Upload logs + table + PR number
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-data
+          path: |
+            base/base.log
+            head/head.log
+            perf-table.md
+            pr-number.txt

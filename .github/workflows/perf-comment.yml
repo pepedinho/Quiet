@@ -1,0 +1,48 @@
+name: perf-comment
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  pull-requests: write
+  actions: read
+
+jobs:
+  comment:
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: perf-data
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Read + validate PR number
+        id: pr
+        run: |
+          PR=$(cat pr-number.txt)
+          [[ "$PR" =~ ^[0-9]+$ ]] || { echo "bad PR number"; exit 1; }
+          echo "number=$PR" >> "$GITHUB_OUTPUT"
+
+      - name: Check perf.py on main
+        id: check
+        run: |
+          if [ -f scripts/perf.py ]; then echo "skip=false"; else echo "skip=true"; fi >> "$GITHUB_OUTPUT"
+
+      - name: Generate table (trusted perf.py from main)
+        run: |
+          python3 scripts/perf.py compare \
+            base/base.log head/head.log \
+            --base-label main --head-label "PR #${{ steps.pr.outputs.number }}" \
+            --out perf-table.md
+
+      - name: Sticky benchmark comment
+        uses: marocchino/sticky-pull-request-comment@v3
+        with:
+          number: ${{ steps.pr.outputs.number }}
+          header: quiet-perf
+          path: perf-table.md
