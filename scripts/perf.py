@@ -130,11 +130,11 @@ def render_markdown(verdicts, base_label, head_label, optimize, kvm):
         if v["status"] == "✨":
             s = v["head"].get("vga.stores", "—")
             fl = v["head"].get("vga.flushes", "—")
-            rows.append(f"| {name} | — → {s} | — | — → {fl} | — | ✨ nouveau |")
+            rows.append(f"| {name} | — → {s} | — | — → {fl} | — | ✨ new |")
         elif v["status"] == "🗑":
             s = v["base"].get("vga.stores", "—")
             fl = v["base"].get("vga.flushes", "—")
-            rows.append(f"| {name} | {s} → — | — | {fl} → — | — | 🗑 supprimé |")
+            rows.append(f"| {name} | {s} → — | — | {fl} → — | — | 🗑 removed |")
         else:
             d = v["deltas"]
             rows.append(

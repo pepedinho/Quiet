@@ -34,6 +34,7 @@ jobs:
           if [ -f scripts/perf.py ]; then echo "skip=false"; else echo "skip=true"; fi >> "$GITHUB_OUTPUT"
 
       - name: Generate table (trusted perf.py from main)
+        if: steps.check.outputs.skip != 'true'
         run: |
           python3 scripts/perf.py compare \
             base/base.log head/head.log \
@@ -41,6 +42,7 @@ jobs:
             --out perf-table.md
 
       - name: Sticky benchmark comment
+        if: steps.check.outputs.skip != 'true'
         uses: marocchino/sticky-pull-request-comment@v3
         with:
           number: ${{ steps.pr.outputs.number }}
