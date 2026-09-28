@@ -219,6 +219,7 @@ pub const Terminal = struct {
     }
 
     pub fn flush(self: *Self) void {
+        vga.trackFlush();
         var line_idx: usize = self.top;
         while (line_idx < self.top + ROWS) : (line_idx += 1) {
             const pos = line_idx * COLS;

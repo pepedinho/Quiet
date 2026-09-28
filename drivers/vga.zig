@@ -1,5 +1,20 @@
 const std = @import("std");
 const pio = @import("arch").pio;
+const b_opt = @import("b_opt");
+
+/// Performance tracking, compiled only if -DPerf flag is used
+pub const Stats = if (b_opt.perf) struct {
+    pub var stores: usize = 0;
+    pub var flushes: usize = 0;
+} else struct {};
+
+pub inline fn trackStore() void {
+    if (comptime b_opt.perf) Stats.stores += 1;
+}
+
+pub inline fn trackFlush() void {
+    if (comptime b_opt.perf) Stats.flushes += 1;
+}
 
 pub const VGA_WIDTH = 80;
 pub const VGA_HEIGHT = 25;
@@ -103,6 +118,7 @@ pub fn setColor(fg: ColorType, bg: ColorType) void {
 
 /// Create a new Cell with provided attribute and put it in the VGA internal buffer.
 pub fn printCharAt(char: u8, color: Color, x: usize, y: usize) void {
+    trackStore();
     const idx = y * VGA_WIDTH + x;
     term_buffer[idx] = .{ .char = char, .attr = color };
 }
