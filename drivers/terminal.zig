@@ -49,6 +49,11 @@ pub const BUFFER_SIZE = COLS * TOTAL_ROWS;
 
 pub const default_color: vga.Color = .{ .fg = .light_gray, .bg = .black };
 
+/// RAM Physical screen (VGA) mirror.
+/// Screen is a shared ressource so it shadow should be shared to.
+/// it modified by Terminal.flush()
+var screen_shadow: Buffer = .init(COLS, TOTAL_ROWS);
+
 const ansi_to_vga = [_]u4{
     0, //  0 black        -> black
     4, //  1 red          -> red
@@ -73,8 +78,29 @@ pub const TerminalState = enum {
     navigation,
 };
 
-pub const Terminal = struct {
+/// A 2D grid of `vga.Cell`s represented internally as a 1D array.
+pub const Buffer = struct {
     buffer: [BUFFER_SIZE]vga.Cell,
+    width: usize,
+    height: usize,
+
+    const Self = @This();
+
+    pub fn init(width: usize, height: usize) Self {
+        return .{ .width = width, .height = height, .buffer = [_]vga.Cell{.{ .char = ' ', .attr = default_color }} ** BUFFER_SIZE };
+    }
+
+    /// Return a pointer to [`Cell`] at the specified position.
+    /// Return `null` if the coordinates are out of bounds.
+    pub fn get(self: *Self, x: usize, y: usize) ?*vga.Cell {
+        if (x >= self.width or y >= self.height) return null;
+        const idx = y * self.width + x;
+        return &self.buffer[idx];
+    }
+};
+
+pub const Terminal = struct {
+    front_buffer: Buffer = .init(COLS, TOTAL_ROWS),
 
     cursor_row: usize = SCROLLBACK,
     cursor_col: usize = 0,
@@ -105,7 +131,7 @@ pub const Terminal = struct {
             self.cursor_row -= 1;
             self.cursor_col = COLS - 1;
         }
-        self.buffer[self.cursor_row * COLS + self.cursor_col] = .{ .char = ' ', .attr = self.color };
+        self.front_buffer.buffer[self.cursor_row * COLS + self.cursor_col] = .{ .char = ' ', .attr = self.color };
     }
 
     /// Shifted by one all internal buffer line
@@ -113,12 +139,12 @@ pub const Terminal = struct {
     /// make room for the new one.
     fn shiftUp(self: *Self) void {
         for (1..TOTAL_ROWS) |r| {
-            const src = self.buffer[r * COLS .. (r + 1) * COLS];
-            const dst = self.buffer[(r - 1) * COLS .. r * COLS];
+            const src = self.front_buffer.buffer[r * COLS .. (r + 1) * COLS];
+            const dst = self.front_buffer.buffer[(r - 1) * COLS .. r * COLS];
             @memcpy(dst, src);
         }
 
-        const last = self.buffer[(TOTAL_ROWS - 1) * COLS .. TOTAL_ROWS * COLS];
+        const last = self.front_buffer.buffer[(TOTAL_ROWS - 1) * COLS .. TOTAL_ROWS * COLS];
         @memset(last, .{ .char = ' ', .attr = self.color });
     }
 
@@ -128,7 +154,7 @@ pub const Terminal = struct {
             .char => |c| {
                 if (c < 0x20) return;
                 const flatten_pos = self.cursor_row * COLS + self.cursor_col;
-                self.buffer[flatten_pos] = .{ .char = c, .attr = self.color };
+                self.front_buffer.buffer[flatten_pos] = .{ .char = c, .attr = self.color };
                 self.cursor_col += 1;
                 if (self.cursor_col == COLS) self.nl();
             },
@@ -178,7 +204,7 @@ pub const Terminal = struct {
     }
 
     fn clearRowFrom(self: *Self, row: usize, col: usize) void {
-        const line = self.buffer[row * COLS .. (row + 1) * COLS];
+        const line = self.front_buffer.buffer[row * COLS .. (row + 1) * COLS];
         @memset(line[col..], .{ .char = ' ', .attr = self.color });
     }
 
@@ -194,7 +220,7 @@ pub const Terminal = struct {
     fn eraseToCursor(self: *Self) void {
         for (self.top..self.cursor_row) |r| self.clearRowFrom(r, 0);
 
-        const line = self.buffer[self.cursor_row * COLS .. (self.cursor_row + 1) * COLS];
+        const line = self.front_buffer.buffer[self.cursor_row * COLS .. (self.cursor_row + 1) * COLS];
         @memset(line[0..self.cursor_col], .{ .char = ' ', .attr = self.color });
     }
 
@@ -220,12 +246,15 @@ pub const Terminal = struct {
 
     pub fn flush(self: *Self) void {
         vga.trackFlush();
-        var line_idx: usize = self.top;
-        while (line_idx < self.top + ROWS) : (line_idx += 1) {
-            const pos = line_idx * COLS;
-            const line = self.buffer[pos .. pos + COLS];
-            for (line, 0..) |cell, i| {
-                vga.printCharAt(cell.char, cell.attr, i, line_idx - self.top);
+        var y: usize = self.top;
+        while (y < self.top + ROWS) : (y += 1) {
+            var x: usize = 0;
+            while (x < COLS) : (x += 1) {
+                const front = self.front_buffer.get(x, y) orelse continue;
+                const shadow = screen_shadow.get(x, y) orelse continue;
+                if (front.getVga() == shadow.getVga()) continue;
+                vga.printCharAt(front.char, front.attr, x, y - self.top);
+                shadow.* = front.*;
             }
         }
         if (self.atBottom()) {
@@ -234,7 +263,7 @@ pub const Terminal = struct {
     }
 
     pub fn clear(self: *Self) void {
-        @memset(&self.buffer, .{ .char = ' ', .attr = self.color });
+        @memset(&self.front_buffer.buffer, .{ .char = ' ', .attr = self.color });
         self.cursorHome();
     }
 
@@ -257,7 +286,6 @@ var g_state: TerminalState = .normal;
 pub fn init() void {
     vga.init();
     terminals = [_]Terminal{.{
-        .buffer = [_]vga.Cell{.{ .char = ' ', .attr = default_color }} ** BUFFER_SIZE,
         .cursor_col = 0,
         .top = TOTAL_ROWS - ROWS,
     }} ** MAX_TERMINAL;
