@@ -103,6 +103,18 @@ def parse_log_file(path):
         return parse_serial(f.read())
 
 
+def pct_delta(base_value, delta):
+    """Percentage change; None when base is 0 (undefined). Display-only."""
+    if base_value == 0:
+        return None
+    return 100.0 * delta / base_value
+
+
+def fmt_pct(base_value, delta):
+    p = pct_delta(base_value, delta)
+    return f" ({p:+.1f}%)" if p is not None else " (—)"
+
+
 def compare_metrics(base, head):
     """One verdict per workload: ✨ new (head only), 🗑 removed (base only),
     🔴/🟢/✅ on shared workloads."""
@@ -137,10 +149,11 @@ def render_markdown(verdicts, base_label, head_label, optimize, kvm):
             rows.append(f"| {name} | {s} → — | — | {fl} → — | — | 🗑 removed |")
         else:
             d = v["deltas"]
+            b_s, h_s = v["base"].get("vga.stores", 0), v["head"].get("vga.stores", 0)
+            b_f, h_f = v["base"].get("vga.flushes", 0), v["head"].get("vga.flushes", 0)
             rows.append(
-                f"| {name} | {v['base'].get('vga.stores', '—')} → {v['head'].get('vga.stores', '—')} "
-                f"| {d['vga.stores']:+d} | {v['base'].get('vga.flushes', '—')} → {v['head'].get('vga.flushes', '—')} "
-                f"| {d['vga.flushes']:+d} | {v['status']} |"
+                f"| {name} | {b_s} → {h_s} | {d['vga.stores']:+d}{fmt_pct(b_s, d['vga.stores'])} "
+                f"| {b_f} → {h_f} | {d['vga.flushes']:+d}{fmt_pct(b_f, d['vga.flushes'])} | {v['status']} |"
             )
     regressions = sum(1 for v in verdicts if v["status"] == "🔴")
     improvements = sum(1 for v in verdicts if v["status"] == "🟢")
@@ -150,7 +163,7 @@ def render_markdown(verdicts, base_label, head_label, optimize, kvm):
         f"## Benchmark counters (`{optimize} -Dperf`, {'KVM' if kvm else 'TCG'})",
         f"**base `{base_label}` vs head `{head_label}`**",
         "",
-        "| Workload | stores (base → head) | Δ stores | flushes (base → head) | Δ flushes | Verdict |",
+        "| Workload | stores (base → head) | Δ stores (%) | flushes (base → head) | Δ flushes (%) | Verdict |",
         "|---|---|---|---|---|---|",
         *rows,
         "",
