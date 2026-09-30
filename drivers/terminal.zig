@@ -331,6 +331,10 @@ pub fn activate(idx: usize) void {
 
 /// Change the state of terminal driver
 pub fn switchState(state: TerminalState) void {
+    switch (state) {
+        .navigation => vga.disableCursor(),
+        .normal => vga.enableCursor(0, 15),
+    }
     g_state = state;
     renderStatusBar();
 }
