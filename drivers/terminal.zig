@@ -322,7 +322,9 @@ pub fn init() void {
 ///if idx is out of bounds this function
 ///applied a modulo on the provided value
 pub fn activate(idx: usize) void {
+    const last_top = terminals[active_idx].top;
     active_idx = idx % MAX_TERMINAL;
+    terminals[active_idx].top = last_top;
     terminals[active_idx].flush();
     renderStatusBar();
 }
