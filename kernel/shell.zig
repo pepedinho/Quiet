@@ -59,10 +59,7 @@ pub fn run() void {
                         .down => terminal.scrollDown(),
                         else => {},
                     },
-                    .char => |c| switch (c) {
-                        '\x1b', '\n' => terminal.switchState(.normal),
-                        else => {},
-                    },
+                    .char => terminal.switchState(.normal),
                     else => {},
                 },
             }

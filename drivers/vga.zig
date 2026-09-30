@@ -108,6 +108,28 @@ pub fn syncCursor() void {
     pio.outb(0x3D5, @truncate(pos >> 8));
 }
 
+/// Physically scroll terminal rows down by one.
+/// Row 0 keeps its bytes: the next flush repaints the entering row.
+pub fn scrollRowsDown() void {
+    var r: usize = VGA_HEIGHT - 2;
+    while (r > 0) : (r -= 1) {
+        for (0..VGA_WIDTH) |i| {
+            VGA_BUFFER[r * VGA_WIDTH + i] = VGA_BUFFER[(r - 1) * VGA_WIDTH + i];
+        }
+    }
+}
+
+/// Pyhsically scroll terminal rows down by one.
+/// Row 0 keeps its bytes: the next flush repaints the entering row.
+pub fn scrollRowsUp() void {
+    var r: usize = 0;
+    while (r < VGA_HEIGHT - 2) : (r += 1) {
+        for (0..VGA_WIDTH) |i| {
+            VGA_BUFFER[r * VGA_WIDTH + i] = VGA_BUFFER[(r + 1) * VGA_WIDTH + i];
+        }
+    }
+}
+
 /// Change internal VGA driver `term_color`.
 /// default:
 ///     fg: light_gray

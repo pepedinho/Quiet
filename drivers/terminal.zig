@@ -118,9 +118,6 @@ pub const Terminal = struct {
             self.cursor_row += 1;
         } else {
             self.shiftUp();
-            //INFO: is the windows has been scrolled up, this line ensure
-            //it is returned to is base that the user can see the new line.
-            if (!self.atBottom()) self.top = SCROLLBACK;
         }
     }
 
@@ -224,12 +221,28 @@ pub const Terminal = struct {
         @memset(line[0..self.cursor_col], .{ .char = ' ', .attr = self.color });
     }
 
+    /// Snap the view to the bottom. Full window redraw without diff:
+    /// the screen still shows the old scrolled view.
+    fn snapToBottom(self: *Self) void {
+        self.top = SCROLLBACK;
+        for (0..ROWS) |sr| {
+            const y = self.top + sr;
+            for (0..COLS) |x| {
+                const cell = self.front_buffer.get(x, y) orelse unreachable;
+                vga.printCharAt(cell.char, cell.attr, x, sr);
+                screen_shadow.buffer[y * COLS + x] = cell.*;
+            }
+        }
+    }
+
     /// Return true if top is at it max pos
     pub fn atBottom(self: *Self) bool {
         return self.top == TOTAL_ROWS - ROWS;
     }
 
     pub fn printChar(self: *Self, char: u8) void {
+        //HACK: Snap the view back to the bottom when input arrives while scrolled
+        if (!self.atBottom()) self.snapToBottom();
         switch (char) {
             '\n' => self.nl(),
             '\r' => self.cursor_col = 0,
@@ -267,13 +280,25 @@ pub const Terminal = struct {
         self.cursorHome();
     }
 
+    /// Move the view to the bottom. Full window redraw without diff: the
+    /// screen still shows the old scrolled view.
     pub fn scrollDown(self: *Self) void {
-        self.top = @min(self.top + 1, TOTAL_ROWS - ROWS);
+        if (self.top == TOTAL_ROWS - ROWS) return;
+        vga.scrollRowsUp();
+        const old_bottom = self.top + ROWS - 1;
+        const src = old_bottom * COLS;
+        @memcpy(screen_shadow.buffer[src + COLS .. src + 2 * COLS], screen_shadow.buffer[src .. src + COLS]);
+        self.top += 1;
     }
 
+    /// Move the view up in history: scroll the screen down one row and sync
+    /// the shadow's entering row.
     pub fn scrollUp(self: *Self) void {
-        const top_min = 0;
-        self.top = @max(self.top - 1, top_min);
+        if (self.top == 0) return;
+        vga.scrollRowsDown();
+        const c = self.top * COLS;
+        @memcpy(screen_shadow.buffer[c - COLS .. c], screen_shadow.buffer[c .. c + COLS]);
+        self.top -= 1;
     }
 };
 
