@@ -28,7 +28,8 @@
 //!
 //! # Color contract
 //! Backgrounds MUST be < 8 (bit 7 = 0) to avoid hardware blinking; the
-//! status bar uses `light_gray`. `flush` re-renders rows `0..ROWS-1`
+//! status bar uses `light_gray` except for the current terminal state.
+//! `flush` re-renders rows `0..ROWS-1`
 //! only — never the status bar row. Active tab highlight uses `fg`.
 //!
 //! # Public API
@@ -365,7 +366,7 @@ fn renderStatusBar() void {
         vga.printCharAt(' ', status_bar_color, i, STATUS_BAR_ROW);
     }
 
-    const tab_buffer_size: usize = (MAX_TERMINAL * 3);
+    const tab_buffer_size: usize = MAX_TERMINAL * 3;
     var tabs = [_]u8{' '} ** tab_buffer_size;
     var i: usize = 0;
 
@@ -390,10 +391,17 @@ fn renderStatusBar() void {
         }
     }
 
-    const state = @tagName(g_state);
+    const state = switch (g_state) {
+        .navigation => " NAV ",
+        .normal => " NOR ",
+    };
     const start = vga.VGA_WIDTH - state.len;
+    const status_color: vga.Color = switch (g_state) {
+        .navigation => .{ .fg = .black, .bg = .red },
+        .normal => .{ .fg = .white, .bg = .blue },
+    };
     for (state, 0..) |char, idx| {
-        vga.printCharAt(char, status_bar_color, start + idx, STATUS_BAR_ROW);
+        vga.printCharAt(char, status_color, start + idx, STATUS_BAR_ROW);
     }
 }
 
