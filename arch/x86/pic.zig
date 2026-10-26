@@ -86,28 +86,28 @@ pub fn init() void {
 }
 
 pub fn sendEoi(irq: Irq) void {
-    if (@intFromEnum(irq) >= 8) {
+    if (@backingInt(irq) >= 8) {
         outb(PIC2_CMD, PIC_EOI);
     }
     outb(PIC1_CMD, PIC_EOI);
 }
 
 pub fn irqSetMask(irq: Irq) void {
-    if (@intFromEnum(irq) < 8) {
-        const value = inb(PIC1_DATA) | @as(u8, 1) << @truncate(@intFromEnum(irq));
+    if (@backingInt(irq) < 8) {
+        const value = inb(PIC1_DATA) | @as(u8, 1) << @truncate(@backingInt(irq));
         outb(PIC1_DATA, value);
     } else {
-        const value = inb(PIC2_DATA) | @as(u8, 1) << @truncate(@intFromEnum(irq) - 8);
+        const value = inb(PIC2_DATA) | @as(u8, 1) << @truncate(@backingInt(irq) - 8);
         outb(PIC2_DATA, value);
     }
 }
 
 pub fn irqClearMask(irq: Irq) void {
-    if (@intFromEnum(irq) < 8) {
-        const value = inb(PIC1_DATA) & ~(@as(u8, 1) << @truncate(@intFromEnum(irq)));
+    if (@backingInt(irq) < 8) {
+        const value = inb(PIC1_DATA) & ~(@as(u8, 1) << @truncate(@backingInt(irq)));
         outb(PIC1_DATA, value);
     } else {
-        const value = inb(PIC2_DATA) & ~(@as(u8, 1) << @truncate(@intFromEnum(irq) - 8));
+        const value = inb(PIC2_DATA) & ~(@as(u8, 1) << @truncate(@backingInt(irq) - 8));
         outb(PIC2_DATA, value);
     }
 }

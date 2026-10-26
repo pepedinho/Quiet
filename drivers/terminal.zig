@@ -88,7 +88,7 @@ pub const Buffer = struct {
     const Self = @This();
 
     pub fn init(width: usize, height: usize) Self {
-        return .{ .width = width, .height = height, .buffer = [_]vga.Cell{.{ .char = ' ', .attr = default_color }} ** BUFFER_SIZE };
+        return .{ .width = width, .height = height, .buffer = @splat(.{ .char = ' ', .attr = default_color }) };
     }
 
     /// Return a pointer to [`Cell`] at the specified position.
@@ -173,10 +173,10 @@ pub const Terminal = struct {
         if (sgr.reset) self.color = default_color;
         if (sgr.fg) |i| {
             const idx: u8 = if (sgr.bold and i < 8) i + 8 else i;
-            self.color.fg = @enumFromInt(ansi_to_vga[idx]);
+            self.color.fg = @fromBackingInt(@intCast(ansi_to_vga[idx]));
         }
         if (sgr.bg) |i| {
-            self.color.bg = @enumFromInt(ansi_to_vga[i & 0x07]);
+            self.color.bg = @fromBackingInt(@intCast(ansi_to_vga[i & 0x07]));
         }
     }
 
@@ -311,10 +311,10 @@ var g_state: TerminalState = .normal;
 /// Init VGA driver and [`Terminal`] structure.
 pub fn init() void {
     vga.init();
-    terminals = [_]Terminal{.{
+    terminals = @splat(.{
         .cursor_col = 0,
         .top = TOTAL_ROWS - ROWS,
-    }} ** MAX_TERMINAL;
+    });
 
     renderStatusBar();
 }
@@ -367,7 +367,7 @@ fn renderStatusBar() void {
     }
 
     const tab_buffer_size: usize = MAX_TERMINAL * 3;
-    var tabs = [_]u8{' '} ** tab_buffer_size;
+    var tabs: [tab_buffer_size]u8 = @splat(' ');
     var i: usize = 0;
 
     for (0..MAX_TERMINAL) |tab| {
