@@ -54,7 +54,7 @@ pub const Parser = struct {
         switch (byte) {
             '[' => {
                 state = .csi;
-                self.params = [_]u8{0} ** MAX_PARAMS;
+                self.params = @splat(0);
                 self.param_count = 1;
                 self.cur_param = 0;
             },

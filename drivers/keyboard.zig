@@ -30,7 +30,7 @@ comptime {
 }
 
 const base_map: [0x80]u8 = blk: {
-    var m: [0x80]u8 = [_]u8{0} ** 0x80;
+    var m: [0x80]u8 = @splat(0);
     for (rows) |row| {
         for (row.chars, 0..) |c, i| {
             m[row.start + i] = c;
@@ -177,7 +177,7 @@ fn keyboardHandler(frame: *idt.InterruptFrame) void {
 
 pub fn init() void {
     idt.registerHandler(
-        @enumFromInt(pic.PIC1_OFFSET + @intFromEnum(pic.Irq.keyboard)),
+        @fromBackingInt(@intCast(pic.PIC1_OFFSET + @backingInt(pic.Irq.keyboard))),
         keyboardHandler,
     );
     pic.irqClearMask(.keyboard);
