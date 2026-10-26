@@ -125,7 +125,7 @@ pub fn exceptionHandler(frame: *arch.idt.InterruptFrame) void {
     arch.idt.disableInterrupts();
     if (panicked) arch.cpu.hlt();
     panicked = true;
-    const int_name = @tagName(@as(arch.idt.Interrupt, @enumFromInt(frame.int_no)));
+    const int_name = @tagName(@as(arch.idt.Interrupt, @fromBackingInt(@intCast(frame.int_no))));
     drivers.serial.print("EXCEPTION: {s} err=0x{x} eip=0x{x} cs={x} eflags={x}\n", .{ int_name, frame.err, frame.eip, frame.cs, frame.eflags });
     traceFromEbp(.serial, frame.ebp, frame.eip);
     arch.cpu.hlt();

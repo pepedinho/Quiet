@@ -106,7 +106,7 @@ fn generateStub(comptime int: Interrupt) *const fn () callconv(.naked) void {
             }
             asm volatile ("push %[int]"
                 :
-                : [int] "i" (@as(u32, @intFromEnum(int))),
+                : [int] "i" (@as(u32, @backingInt(int))),
             );
             asm volatile ("jmp isrStub");
         }
@@ -116,7 +116,7 @@ fn generateStub(comptime int: Interrupt) *const fn () callconv(.naked) void {
 const isr_stub = blk: {
     var stubs: [IDT_ENTRIES]*const fn () callconv(.naked) void = undefined;
     for (0..IDT_ENTRIES) |i| {
-        stubs[i] = generateStub(@enumFromInt(i));
+        stubs[i] = generateStub(@fromBackingInt(@intCast(i)));
     }
     break :blk stubs;
 };
@@ -147,7 +147,7 @@ export fn interruptDispatch(frame: *InterruptFrame) void {
 }
 
 pub fn registerHandler(int: Interrupt, handler: InterruptHandler) void {
-    handlers[@intFromEnum(int)] = handler;
+    handlers[@backingInt(int)] = handler;
 }
 
 pub fn init() void {
